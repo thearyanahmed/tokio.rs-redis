@@ -1,14 +1,25 @@
-use mini_redis::{client,Result};
+use tokio::net::{TcpListener, TcpStream};
+use mini_redis::{Connection, Frame};
 
 #[tokio::main]
-async fn main() -> Result<()> {
-    let mut client = client::connect("localhost:6379").await?;
+async fn main() {
 
-    client.set("hello", "world".into()).await?;
+    let listener = TcpListener::bind("localhost:6379").await.unwrap();
+    
+    loop {
+        let (socket, _) = listener.accept().await.unwrap();
+        process(socket).await;
+    }
+}
 
-    let result = client.get("hello").await?;
+async fn process(socket: TcpStream) {
+    let mut con = Connection::new(socket);
 
-    println!("got value from server; result={:?}",result);
+    if let Some(frame) = con.read_frame().await.unwrap() {
+        println!("GOT : {:?}",frame);
 
-    return Ok(());
+        let res = Frame::Error("unimplemented".to_string());
+
+        con.write_frame(&res).await.unwrap();
+    }
 }
